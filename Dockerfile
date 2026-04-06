@@ -1,14 +1,16 @@
 FROM atendai/evolution-api:v2.2.3
 
-# Patch: Allow @lid JIDs (used by 98% of WhatsApp contacts in China)
-# Step 1: Find the actual file location and show onWhatsApp patterns
-# Step 2: Apply the patch
-
-RUN echo "=== Finding files ===" && \
-    find / -name "*.service.js" -path "*/whatsapp*" 2>/dev/null && \
-    echo "=== Finding onWhatsApp ===" && \
-    grep -rn "onWhatsApp" /evolution/ 2>/dev/null | head -20 && \
-    echo "=== Finding exists check ===" && \
-    grep -rn "exists.*false\|!.*exists" /evolution/ 2>/dev/null | grep -i "whatsapp\|baileys" | head -20
+# Find the EXACT file and function to patch
+RUN echo "=== JS FILES ===" && \
+    find /evolution -name "*.js" -path "*baileys*" 2>/dev/null && \
+    echo "=== DIST STRUCTURE ===" && \
+    ls -la /evolution/dist/ 2>/dev/null && \
+    ls -la /evolution/dist/src/ 2>/dev/null | head -10 && \
+    echo "=== FIND onWhatsApp ===" && \
+    grep -rln "onWhatsApp" /evolution/dist/ 2>/dev/null | head -5 && \
+    echo "=== EXACT PATTERN ===" && \
+    FILE=$(grep -rln "onWhatsApp" /evolution/dist/ 2>/dev/null | head -1) && \
+    echo "File: $FILE" && \
+    grep -n "onWhatsApp" "$FILE" | head -10
 
 EXPOSE 8080
