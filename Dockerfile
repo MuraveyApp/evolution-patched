@@ -1,19 +1,23 @@
 FROM atendai/evolution-api:v2.2.3
 
-# Cache bust
-ARG CACHEBUST=7
+# Force no cache - unique timestamp
+RUN echo "build-20260407-001" > /tmp/build_id
 
-# Patch: Allow @lid JIDs (98% of WhatsApp contacts in China use LID format)
-RUN node -e " \
-  const fs = require('fs'); \
-  const file = '/evolution/dist/api/integrations/channel/whatsapp/whatsapp.baileys.service.js'; \
-  let code = fs.readFileSync(file, 'utf8'); \
-  const orig = code.length; \
-  code = code.replace('exists:!!g?.exists,jid:h,', 'exists:!!g?.exists||String(h).includes(\"@lid\"),jid:h,'); \
-  code = code.replace('.filter(u=>u.exists)', '.filter(u=>u.exists||String(u.jid).includes(\"@lid\"))'); \
-  fs.writeFileSync(file, code); \
-  console.log('Patched .js: ' + (code.length - orig) + ' chars diff'); \
-  console.log('Verify @lid in code: ' + code.includes('@lid')); \
-  " && echo "LID PATCH SUCCESS"
+# Patch: Allow @lid JIDs
+RUN set -ex && \
+    FILE="/evolution/dist/api/integrations/channel/whatsapp/whatsapp.baileys.service.js" && \
+    ls -la "$FILE" && \
+    node -e " \
+      const fs=require('fs'); \
+      const f='/evolution/dist/api/integrations/channel/whatsapp/whatsapp.baileys.service.js'; \
+      let c=fs.readFileSync(f,'utf8'); \
+      const before=c.includes('@lid'); \
+      c=c.replace('exists:!!g?.exists,jid:h,','exists:!!g?.exists||String(h).includes(\"@lid\"),jid:h,'); \
+      c=c.replace('.filter(u=>u.exists)','.filter(u=>u.exists||String(u.jid).includes(\"@lid\"))'); \
+      fs.writeFileSync(f,c); \
+      const after=c.includes('@lid'); \
+      console.log('Before @lid:',before,'After:',after); \
+      if(!after){console.error('PATCH FAILED');process.exit(1);} \
+    "
 
 EXPOSE 8080
